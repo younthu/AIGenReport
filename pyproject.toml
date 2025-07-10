@@ -1,0 +1,27 @@
+[project]
+name = "aigenreport"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "docarray>=0.41.0",
+    "duckdb>=1.3.1",
+    "faiss-cpu>=1.11.0",
+    "langchain>=0.3.26",
+    "langchain-experimental>=0.3.4",
+    "langchain-openai>=0.3.27",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "streamlit>=1.46.1",
+    "tiktoken>=0.9.0",
+    "torch>=2.7.1",
+    "torchaudio>=2.7.1",
+    "torchvision>=0.22.1",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+    "langchain-cli>=0.0.36",
+]
