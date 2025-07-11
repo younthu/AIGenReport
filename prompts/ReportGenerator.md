@@ -9,6 +9,9 @@
 1. 要求整个过程可观测，好调试。
 1. 主体workflow文件名为university_selection_report/university_selection_workflow.py.
 1. 类名为UniversitySelectionWorkflow
+1. 添加main，添加对workflow的支持。
+1. langsmith记log的时候每个章节区分开，方便调试. 注意，如果没有配置langchain api key的情况下代码不要抛错，给出错误提示就可以了。
+1. 帮我写一个脚本, 用于启动langserve, 对外提供university_selection_workflow.py的调用服务
 
 选校报告生成流程如下:
 1. 拿到学生profile以后先用AI分析,结合学生的基本情况，推荐3个专业。给出每个专业的推荐理由. 生成markdown， 形成专业报告.
@@ -22,3 +25,5 @@
     1. 学校的录取率，亚洲学生录取概况。
 1. 每个章节都生成单独的markdown, 最后拼接到一起，形成单个学校的选校报告。然后把所有学校的内容拼接到一起，形成完整的选校报告。
 1. 最后把专业报告和选校报告拼接到一起, 形成完整的markdown内容。
+
+请一步一步思考.
