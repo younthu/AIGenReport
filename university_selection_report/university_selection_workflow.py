@@ -1,5 +1,5 @@
 import os
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Optional
 from langchain.chains import LLMChain
 from langsmith import traceable
 from langchain.prompts import PromptTemplate
@@ -40,14 +40,18 @@ def read_profile(profile_input: str) -> str:
 
 
 class UniversitySelectionWorkflow:
-    def __init__(self, llm_name: str = 'openai', debug: bool = True, project_name: str = "university-selection"):
+    def __init__(self, llm_name: str = 'openai', debug: bool = True, project_name: str = "university-selection", output_dir: Optional[str] = None):
         self.llm_name = llm_name
         self.llm = get_llm(llm_name)
         self.debug = debug
         self.project_name = project_name
         # self.univ_norm = UniversityNormalization()
         # self.univ_knowledge = UniversityKnowledge()
-        
+        if output_dir is None:
+            self.output_dir = os.path.join(os.path.dirname(__file__), "output")
+        else:
+            self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
         # 设置LangSmith tracing
         self._setup_langsmith()
 
@@ -79,27 +83,13 @@ class UniversitySelectionWorkflow:
         prompt = PromptTemplate(
             input_variables=["profile"],
             template=(
-                "你是一名美国本科留学选校专家。根据以下学生profile，推荐3个最适合的专业，并给出每个专业的推荐理由。\n"
-                "学生profile：\n{profile}\n"
-                "请用markdown格式输出，包含专业名称和推荐理由。"
+                "You are an expert in US undergraduate university selection. Based on the following student profile, recommend 3 most suitable majors and provide reasons for each.\n"
+                "Student profile:\n{profile}\n"
+                "Please output in markdown format, including major names and reasons.\n"
+                "All output must be in English."
             )
         )
         chain = LLMChain(llm=self.llm, prompt=prompt)
-        
-        # 尝试记录到LangSmith（如果可用）
-        try:
-            if os.getenv("LANGSMITH_API_KEY"):
-                # 使用LangChain内置的tracing
-                from langchain.callbacks import LangChainTracer
-                tracer = LangChainTracer()
-                result = chain.run({"profile": profile}, callbacks=[tracer])
-                self.log("专业推荐结果：", result)
-                return result
-        except Exception as e:
-            if self.debug:
-                print(f"[DEBUG] LangSmith tracing failed: {e}")
-        
-        # 如果没有LangSmith或出错，使用普通方式
         result = chain.run({"profile": profile})
         self.log("专业推荐结果：", result)
         return result
@@ -110,28 +100,20 @@ class UniversitySelectionWorkflow:
         prompt = PromptTemplate(
             input_variables=["profile", "majors_report"],
             template=(
-                "你是一名美国本科留学选校专家。根据以下学生profile和专业推荐报告，推荐1所保底学校，1所主申学校，1所冲刺学校，并给出推荐理由。\n"
-                "学生profile：\n{profile}\n"
-                "专业推荐报告：\n{majors_report}\n"
-                "请用markdown格式输出，包含学校名称和推荐理由。"
+                "You are an expert in US undergraduate university selection. Based on the following student profile and major recommendation report, recommend 1 safety school, 1 target school, and 1 reach school, and provide reasons for each.\n"
+                "Student profile:\n{profile}\n"
+                "Major recommendation report:\n{majors_report}\n"
+                "Please output in markdown format, including school names and reasons.\n"
+                "All output must be in English."
+                "Please render it in markdown table format."
+                "example: | School Name | Reason |"
+                "| ------------- | ------------- |"
+                "| Safety University | Reason 1 |"
+                "| Target University | Reason 2 |"
+                "| Reach University | Reason 3 |"
             )
         )
         chain = LLMChain(llm=self.llm, prompt=prompt)
-        
-        # 尝试记录到LangSmith（如果可用）
-        try:
-            if os.getenv("LANGSMITH_API_KEY"):
-                # 使用LangChain内置的tracing
-                from langchain.callbacks import LangChainTracer
-                tracer = LangChainTracer()
-                result = chain.run({"profile": profile, "majors_report": majors_report}, callbacks=[tracer])
-                self.log("学校推荐结果：", result)
-                return result
-        except Exception as e:
-            if self.debug:
-                print(f"[DEBUG] LangSmith tracing failed: {e}")
-        
-        # 如果没有LangSmith或出错，使用普通方式
         result = chain.run({"profile": profile, "majors_report": majors_report})
         self.log("学校推荐结果：", result)
         return result
@@ -139,32 +121,17 @@ class UniversitySelectionWorkflow:
     @traceable(run_type="chain")
     def fill_school_info(self, school_name: str, context: Dict[str, Any]) -> str:
         """学校信息填充章节 - 独立的LangSmith trace"""
-        # Placeholder: context should include school json info from knowledge base
         prompt = PromptTemplate(
             input_variables=["school_name", "context"],
             template=(
-                "你是一名美国本科留学选校专家。请根据以下学校信息，生成该校的选校报告章节，内容包括：\n"
-                "1. 学校描述、简介\n2. 推荐理由\n3. 学校的历史招生数据\n4. 学校的录取要求\n5. 学校的录取率，亚洲学生录取概况\n"
-                "学校名称：{school_name}\n学校信息：{context}\n"
-                "请用markdown格式输出。"
+                "You are an expert in US undergraduate university selection. Based on the following school information, generate a section of the university selection report for this school, including:\n"
+                "1. School description and introduction\n2. Reasons for recommendation\n3. Historical admission data\n4. Admission requirements\n5. Admission rate and overview for Asian students\n"
+                "School name: {school_name}\nSchool information: {context}\n"
+                "Please output in markdown format.\n"
+                "All output must be in English."
             )
         )
         chain = LLMChain(llm=self.llm, prompt=prompt)
-        
-        # 尝试记录到LangSmith（如果可用）
-        try:
-            if os.getenv("LANGSMITH_API_KEY"):
-                # 使用LangChain内置的tracing
-                from langchain.callbacks import LangChainTracer
-                tracer = LangChainTracer()
-                result = chain.run({"school_name": school_name, "context": context}, callbacks=[tracer])
-                self.log(f"学校 {school_name} 详细信息：", result)
-                return result
-        except Exception as e:
-            if self.debug:
-                print(f"[DEBUG] LangSmith tracing failed: {e}")
-        
-        # 如果没有LangSmith或出错，使用普通方式
         result = chain.run({"school_name": school_name, "context": context})
         self.log(f"学校 {school_name} 详细信息：", result)
         return result
@@ -175,7 +142,6 @@ class UniversitySelectionWorkflow:
         import re
         
         # 方法1: 使用正则表达式提取学校名称
-        # 匹配常见的学校名称模式
         patterns = [
             r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:University|College|Institute))',
             r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:大学|学院))',
@@ -197,8 +163,9 @@ class UniversitySelectionWorkflow:
                 extract_prompt = PromptTemplate(
                     input_variables=["schools_report"],
                     template=(
-                        "请从以下学校推荐报告中提取3所学校的名称。"
-                        "只返回学校名称，每行一个，不要其他内容：\n\n"
+                        "Please extract the names of 3 universities from the following school recommendation report.\n"
+                        "Only return the school names, one per line, nothing else.\n"
+                        "All output must be in English.\n\n"
                         "{schools_report}"
                     )
                 )
@@ -217,17 +184,17 @@ class UniversitySelectionWorkflow:
         
         # 如果还是没有找到足够的学校，使用默认名称
         if len(school_names) < 3:
-            school_names = ["保底大学", "主申大学", "冲刺大学"]
+            school_names = ["Safety University", "Target University", "Reach University"]
             if self.debug:
                 print("[DEBUG] 使用默认学校名称")
         
         # 确保返回3所学校
         while len(school_names) < 3:
-            school_names.append("待定大学")
+            school_names.append("TBD University")
         
         return school_names[:3]
 
-    @traceable(run_type="chain")
+    @traceable(run_type="chain", name="选校报告Run")
     def run(self, profile_input: str) -> str:
         """主workflow - 使用管道操作符连接各个步骤"""
         profile = read_profile(profile_input)
@@ -276,33 +243,6 @@ class UniversitySelectionWorkflow:
             self.log("最终报告：", final_report)
             return final_report
         
-        # 尝试记录到LangSmith（如果可用）
-        try:
-            if os.getenv("LANGSMITH_API_KEY"):
-                # 使用LangChain内置的tracing包装整个流程
-                from langchain.callbacks import LangChainTracer
-                tracer = LangChainTracer()
-                
-                # 创建管道流程
-                from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
-                
-                # 定义管道
-                pipeline = (
-                    {"profile": RunnablePassthrough()} 
-                    | {"profile": RunnablePassthrough(), "majors_report": RunnableLambda(recommend_majors_step)}
-                    | RunnableLambda(recommend_schools_step)
-                    | RunnableLambda(extract_schools_step)
-                    | RunnableLambda(fill_school_info_step)
-                    | RunnableLambda(generate_final_report_step)
-                )
-                
-                # 执行管道
-                result = pipeline.invoke(profile, config={"callbacks": [tracer]})
-                return result
-                    
-        except Exception as e:
-            if self.debug:
-                print(f"[DEBUG] LangSmith tracing failed: {e}")
         
         # 如果没有LangSmith或出错，使用普通方式
         # 定义管道（普通版本）
@@ -350,6 +290,11 @@ class UniversitySelectionWorkflow:
         
         # 创建普通管道流程
         from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+        import markdown as mdlib
+        
+        def markdown_to_html_step(md_content: str) -> str:
+            """将markdown内容渲染为HTML"""
+            return mdlib.markdown(md_content, extensions=['tables', 'fenced_code'])
         
         pipeline_plain = (
             {"profile": RunnablePassthrough()} 
@@ -358,21 +303,201 @@ class UniversitySelectionWorkflow:
             | RunnableLambda(extract_schools_step_plain)
             | RunnableLambda(fill_school_info_step_plain)
             | RunnableLambda(generate_final_report_step_plain)
+            | RunnableLambda(markdown_to_html_step)
         )
         
         # 执行普通管道
         result = pipeline_plain.invoke(profile)
-        return result
+        
+        # 保存HTML到静态文件
+        html_output_path = os.path.join(self.output_dir, 'UniversitySelectionReport.html')
+        css_path = os.path.join(self.output_dir, 'report_style.css')
+        app_js_path = os.path.join(self.output_dir, 'report_app.js')
+        marked_js_path = os.path.join(self.output_dir, 'marked.min.js')
+        
+        # Download marked.js if not exists
+        if not os.path.exists(marked_js_path):
+            import urllib.request
+            url = "https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+            urllib.request.urlretrieve(url, marked_js_path)
+        
+        # React/JSX template (pass raw markdown, not HTML)
+        react_html = f"""
+        <!DOCTYPE html>
+        <html lang='en'>
+        <head>
+            <meta charset='utf-8'>
+            <title>University Selection Report</title>
+            <link rel='stylesheet' type='text/css' href='report_style.css'>
+            <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+            <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+            <script src="marked.min.js"></script>
+        </head>
+        <body>
+            <div id="root"></div>
+            <script>
+                window.REPORT_MD = `{result.replace('`', '\`').replace('</script>', '<\\/script>')}`;
+            </script>
+            <script src="report_app.js"></script>
+        </body>
+        </html>
+        """
+        with open(html_output_path, 'w', encoding='utf-8') as f:
+            f.write(react_html)
+        print(f"\nHTML报告已保存为: {html_output_path}\n")
+        
+        # 如果CSS文件不存在则创建一个美观的样式
+        if not os.path.exists(css_path):
+            with open(css_path, 'w', encoding='utf-8') as f:
+                f.write('''
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, "Liberation Sans", sans-serif;
+  background: #f8f9fa;
+  color: #222;
+  margin: 0;
+  padding: 40px 0;
+}
+
+h1, h2, h3 {
+  color: #2c3e50;
+  margin-top: 1.5em;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  padding: 32px 40px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 2em 0;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+table th, table td {
+  border: 1px solid #e1e4e8;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+table th {
+  background: #f3f6fa;
+  color: #34495e;
+  font-weight: 600;
+}
+
+table tr:nth-child(even) {
+  background: #f9fbfd;
+}
+
+code, pre {
+  background: #f4f4f4;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 95%;
+}
+
+pre {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+blockquote {
+  border-left: 4px solid #b2bec3;
+  margin: 1em 0;
+  padding-left: 18px;
+  color: #636e72;
+  background: #f7fafd;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 10px 2vw;
+  }
+  table th, table td {
+    padding: 8px 4px;
+  }
+}
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  font-size: 1.5em;
+  color: #888;
+}
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #3498db;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 18px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+''')
+        
+        # 创建React app js
+        with open(app_js_path, 'w', encoding='utf-8') as f:
+            f.write('''
+const { useState, useEffect } = React;
+
+function LoadingIndicator() {
+  return (
+    <div className="loading-indicator">
+      <div className="spinner"></div>
+      <div>Loading report...</div>
+    </div>
+  );
+}
+
+function ReportApp() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="container">
+      {show ? (
+        <div dangerouslySetInnerHTML={{ __html: window.marked.parse(window.REPORT_MD) }} />
+      ) : (
+        <LoadingIndicator />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<ReportApp />);
+''')
+        
+        return react_html
 
 
 def main():
+    # 设置输出目录
+    output_dir = os.path.join(os.path.dirname(__file__), "output")
+    os.makedirs(output_dir, exist_ok=True)
 
     # 默认使用openai（或Tongyi）模型，调试模式开启
     workflow = UniversitySelectionWorkflow(llm_name='openai', debug=True)
     # 使用样例profile文件
     profile_path = os.path.join(os.path.dirname(__file__), 'StudentProfile.txt')
     report = workflow.run(profile_path)
-    output_path = os.path.join(os.path.dirname(__file__), 'UniversitySelectionReport.md')
+    output_path = os.path.join(output_dir, 'UniversitySelectionReport.md')
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(report)
     print("\n===== 生成的完整选校报告 =====\n")
@@ -380,7 +505,7 @@ def main():
     print(f"\n报告已保存为: {output_path}\n")
 
     # 尝试将Markdown渲染为PDF
-    pdf_path = os.path.join(os.path.dirname(__file__), 'UniversitySelectionReport.pdf')
+    pdf_path = os.path.join(output_dir, 'UniversitySelectionReport.pdf')
     
     # 尝试多种PDF生成方式
     pdf_generated = False
@@ -481,4 +606,4 @@ def main():
         print("可以手动将其转换为PDF。\n")
 
 if __name__ == "__main__":
-    main() 
+    main()
