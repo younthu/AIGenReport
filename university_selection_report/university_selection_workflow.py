@@ -1,6 +1,7 @@
 import os
 from typing import Union, Dict, Any
 from langchain.chains import LLMChain
+from langsmith import traceable
 from langchain.prompts import PromptTemplate
 from langchain.llms.base import BaseLLM
 
@@ -72,6 +73,7 @@ class UniversitySelectionWorkflow:
             if data is not None:
                 print(data)
 
+    @traceable(run_type="chain")
     def recommend_majors(self, profile: str) -> str:
         """专业推荐章节 - 独立的LangSmith trace"""
         prompt = PromptTemplate(
@@ -102,6 +104,7 @@ class UniversitySelectionWorkflow:
         self.log("专业推荐结果：", result)
         return result
 
+    @traceable(run_type="chain")
     def recommend_schools(self, profile: str, majors_report: str) -> str:
         """学校推荐章节 - 独立的LangSmith trace"""
         prompt = PromptTemplate(
@@ -133,6 +136,7 @@ class UniversitySelectionWorkflow:
         self.log("学校推荐结果：", result)
         return result
 
+    @traceable(run_type="chain")
     def fill_school_info(self, school_name: str, context: Dict[str, Any]) -> str:
         """学校信息填充章节 - 独立的LangSmith trace"""
         # Placeholder: context should include school json info from knowledge base
@@ -165,6 +169,7 @@ class UniversitySelectionWorkflow:
         self.log(f"学校 {school_name} 详细信息：", result)
         return result
 
+    @traceable(run_type="chain")
     def extract_school_names(self, schools_report: str) -> list:
         """从学校推荐报告中提取学校名称"""
         import re
@@ -222,6 +227,7 @@ class UniversitySelectionWorkflow:
         
         return school_names[:3]
 
+    @traceable(run_type="chain")
     def run(self, profile_input: str) -> str:
         """主workflow - 使用管道操作符连接各个步骤"""
         profile = read_profile(profile_input)
@@ -360,6 +366,7 @@ class UniversitySelectionWorkflow:
 
 
 def main():
+
     # 默认使用openai（或Tongyi）模型，调试模式开启
     workflow = UniversitySelectionWorkflow(llm_name='openai', debug=True)
     # 使用样例profile文件
