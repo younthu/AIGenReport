@@ -1,3 +1,5 @@
 notebooks/.ipynb_checkpoints
 notebooks/data
 university_selection_report/__pycache__
+university_selection_report/output
+.ipynb_checkpoints

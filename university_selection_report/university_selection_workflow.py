@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Union, Dict, Any, Optional
 from langchain.chains import LLMChain
 from langsmith import traceable
@@ -10,6 +11,11 @@ from langchain.llms.base import BaseLLM
 # from knowledge_base.university_knowledge import UniversityKnowledge
 
 os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+
+# load environment variables from .env file with dotenv
+from dotenv import load_dotenv
+load_dotenv()
+locale = "English" # "Chinese"
 
 # LLM registry for switching
 LLM_REGISTRY = {}
@@ -86,7 +92,7 @@ class UniversitySelectionWorkflow:
                 "You are an expert in US undergraduate university selection. Based on the following student profile, recommend 3 most suitable majors and provide reasons for each.\n"
                 "Student profile:\n{profile}\n"
                 "Please output in markdown format, including major names and reasons.\n"
-                "All output must be in English."
+                f"All output must be in {locale}."
             )
         )
         chain = LLMChain(llm=self.llm, prompt=prompt)
@@ -104,7 +110,7 @@ class UniversitySelectionWorkflow:
                 "Student profile:\n{profile}\n"
                 "Major recommendation report:\n{majors_report}\n"
                 "Please output in markdown format, including school names and reasons.\n"
-                "All output must be in English."
+                f"All output must be in {locale}."
                 "Please render it in markdown table format."
                 "example: | School Name | Reason |"
                 "| ------------- | ------------- |"
@@ -128,7 +134,7 @@ class UniversitySelectionWorkflow:
                 "1. School description and introduction\n2. Reasons for recommendation\n3. Historical admission data\n4. Admission requirements\n5. Admission rate and overview for Asian students\n"
                 "School name: {school_name}\nSchool information: {context}\n"
                 "Please output in markdown format.\n"
-                "All output must be in English."
+                f"All output must be in {locale}."
             )
         )
         chain = LLMChain(llm=self.llm, prompt=prompt)
@@ -239,7 +245,7 @@ class UniversitySelectionWorkflow:
             schools_report = inputs["schools_report"]
             full_school_report = inputs["full_school_report"]
             
-            final_report = f"# 专业推荐报告\n\n{majors_report}\n\n# 选校报告\n\n{schools_report}\n\n{full_school_report}"
+            final_report = f"# Major report \n\n{majors_report}\n\n# University selection report\n\n{schools_report}\n\n{full_school_report}"
             self.log("最终报告：", final_report)
             return final_report
         
@@ -284,7 +290,7 @@ class UniversitySelectionWorkflow:
             schools_report = inputs["schools_report"]
             full_school_report = inputs["full_school_report"]
             
-            final_report = f"# 专业推荐报告\n\n{majors_report}\n\n# 选校报告\n\n{schools_report}\n\n{full_school_report}"
+            final_report = f"# Major report \n\n{majors_report}\n\n# University report\n\n{schools_report}\n\n{full_school_report}"
             self.log("最终报告：", final_report)
             return final_report
         
@@ -303,7 +309,7 @@ class UniversitySelectionWorkflow:
             | RunnableLambda(extract_schools_step_plain)
             | RunnableLambda(fill_school_info_step_plain)
             | RunnableLambda(generate_final_report_step_plain)
-            | RunnableLambda(markdown_to_html_step)
+            #| RunnableLambda(markdown_to_html_step)
         )
         
         # 执行普通管道
@@ -323,24 +329,7 @@ class UniversitySelectionWorkflow:
         
         # React/JSX template (pass raw markdown, not HTML)
         react_html = f"""
-        <!DOCTYPE html>
-        <html lang='en'>
-        <head>
-            <meta charset='utf-8'>
-            <title>University Selection Report</title>
-            <link rel='stylesheet' type='text/css' href='report_style.css'>
-            <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-            <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-            <script src="marked.min.js"></script>
-        </head>
-        <body>
-            <div id="root"></div>
-            <script>
-                window.REPORT_MD = `{result.replace('`', '\\`').replace('</script>', '<\\/script>')}`;
-            </script>
-            <script src="report_app.js"></script>
-        </body>
-        </html>
+            {result}
         """
         with open(html_output_path, 'w', encoding='utf-8') as f:
             f.write(react_html)
@@ -489,7 +478,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(<ReportApp />);
 
 def main():
     # 设置输出目录
-    output_dir = os.path.join(os.path.dirname(__file__), "output")
+    # get parent directory of this file
+    import os   
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_dir = os.path.join(parent_dir, "front", "react-markdown", "report", "src")
     os.makedirs(output_dir, exist_ok=True)
 
     # 默认使用openai（或Tongyi）模型，调试模式开启
