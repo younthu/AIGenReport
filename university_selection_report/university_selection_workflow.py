@@ -336,7 +336,7 @@ class UniversitySelectionWorkflow:
         <body>
             <div id="root"></div>
             <script>
-                window.REPORT_MD = `{result.replace('`', '\`').replace('</script>', '<\\/script>')}`;
+                window.REPORT_MD = `{result.replace('`', '\\`').replace('</script>', '<\\/script>')}`;
             </script>
             <script src="report_app.js"></script>
         </body>

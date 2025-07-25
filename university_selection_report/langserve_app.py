@@ -23,12 +23,18 @@ class StudentProfileRequest(BaseModel):
     llm_name: str = Field(default="openai", description="使用的LLM模型名称")
     debug: bool = Field(default=False, description="是否开启调试模式")
 
+# Rebuild model to ensure all references are resolved
+StudentProfileRequest.model_rebuild()
+
 
 class UniversitySelectionResponse(BaseModel):
     """选校报告响应模型"""
     report: str = Field(..., description="生成的完整选校报告")
     llm_used: str = Field(..., description="使用的LLM模型")
     debug_mode: bool = Field(..., description="调试模式状态")
+
+# Rebuild model to ensure all references are resolved
+UniversitySelectionResponse.model_rebuild()
 
 
 class UniversitySelectionWorkflowService:
@@ -118,10 +124,12 @@ async def generate_report(request: StudentProfileRequest):
     )
 
 
+from langchain_core.runnables import RunnableLambda
+
 # 添加LangServe路由
 add_routes(
     app,
-    service.generate_report,
+    RunnableLambda(service.generate_report),
     path="/langserve/generate_report",
     input_type=StudentProfileRequest,
     output_type=UniversitySelectionResponse
@@ -147,4 +155,4 @@ if __name__ == "__main__":
         port=port,
         reload=reload,
         log_level="info"
-    ) 
+    )

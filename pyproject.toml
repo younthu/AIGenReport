@@ -14,6 +14,7 @@ dependencies = [
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=2.1.7",
     "langchain-openai>=0.3.27",
+    "langserve>=0.3.1",
     "markdown>=3.8.2",
     "matplotlib>=3.10.3",
     "pandas>=2.3.0",
@@ -30,4 +31,8 @@ dependencies = [
 dev = [
     "jupyter>=1.1.1",
     "langchain-cli>=0.0.36",
+    "taskipy>=1.14.1",
 ]
+
+[tool.taskipy.tasks]
+start_langserve = "python university_selection_report/langserve_app.py"
